@@ -1,4 +1,4 @@
-Markdown# Adaptive Clipper
+Adaptive Clipper
 **Developed by:** [axiomrasa](https://github.com/axiomrasa)  
 **DSP Core:** Faust DSP (64-bit Double Precision)  
 **Architecture:** Zero-Latency Dynamic Wave-Shaper / Nonlinear Processor  
