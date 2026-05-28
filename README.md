@@ -47,7 +47,6 @@ Where $e(t)$ represents the smoothed macroeconomic envelope tracking estimation.
 ├── juce-project/         # Generated C++ sources and Projucer project (.jucer)
 ├── docs/                 # Technical flowcharts and interface previews
 └── builds/               # Pre-compiled binary deployment targets
-    ├── Mac-VST/          # macOS legacy VST execution component
-    ├── Win-VST/          # Windows VST execution component (.dll)
-    └── Linux-VST/        # Linux VST execution component (.so)
-💻 Hardware & DAW Compatibility MatrixTo understand how pre-compiled binaries run on your specific workstation configuration, please refer to the deployment matrix below:Hardware ArchitectureOS VersionNative SupportExecution ModeWindows (x64 / AMD64)Windows 10 / 11Yes (100%)Plug-and-Play (.dll target)Linux (x64)Ubuntu / Debian / etc.Yes (100%)Plug-and-Play (.so target)Intel Core (Legacy Mac)macOS Mojave to Monterey+Yes (100%)Plug-and-Play (Native)Apple Silicon (M1-M4 Mac)macOS Big Sur to Sequoia+Via WrapperRequires Rosetta 2 DAW Launch🛠️ Note for Apple Silicon Power Users: The pre-compiled legacy macOS binary requires running your DAW in Rosetta 2 mode. For absolute ARM64 hardware-native execution (Native VST3 or Audio Unit) without running translation layers, simply open the provided C++ project inside /juce-project using Xcode on your local machine and execute a hardware-native compile command.📊 Technical SpecificationsLatency: 0 samples (True zero-latency, production and live-tracking safe).Processing Precision: 64-bit double-precision floating-point core calculations.CPU Footprint: Ultra-lightweight (< 0.4% processing budget on modern architectures).Channel Configuration: 2-In / 2-Out Discrete Asynchronous Stereo.📄 LicenseThis project is open-source and available under the MIT License.
+    ├── LINUX/            # Linux VST execution component (AdaptiveClipper.so)
+    ├── Mac-VST/          # macOS legacy VST execution component (AdaptiveClipper.vst)
+    └── WIN64-VST/        # Windows VST execution component (AdaptiveClipper.dll)
