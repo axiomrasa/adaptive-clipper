@@ -1,102 +1,41 @@
-name: Build Universal Cross-Platform Release
+name: Build macOS Universal Release
 on:
   push:
     branches: [ main, master ]
 
 jobs:
-  build-matrix:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-14, windows-2022, ubuntu-22.04]
-
+  build-mac:
+    name: Build macOS VST3 and AU
+    runs-on: macos-14
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install JUCE Dependencies (Linux Only)
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libjack-jackd2-dev libcurl4-openssl-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev libwebkit2gtk-4.0-dev
-
-      - name: Set up MSBuild (Windows Only)
-        if: matrix.os == 'windows-2022'
-        uses: microsoft/setup-msbuild@v2
-
       - name: Clone JUCE Framework
         run: git clone https://github.com/juce-framework/JUCE.git --depth 1
 
-      - name: Compile Projucer (macOS/Linux)
-        if: matrix.os != 'windows-2022'
+      - name: Compile Projucer (macOS)
         run: |
-          cd $GITHUB_WORKSPACE/JUCE/extras/Projucer/Builds/${{ matrix.os == 'macos-14' && 'MacOSX' || 'LinuxMakefile' }}
-          ${{ matrix.os == 'macos-14' && 'xcodebuild -configuration Release -quiet' || 'make -j4' }}
+          cd $GITHUB_WORKSPACE/JUCE/extras/Projucer/Builds/MacOSX
+          xcodebuild -configuration Release -quiet
           mkdir -p $GITHUB_WORKSPACE/bin
-          cp -r build/Release/Projucer${{ matrix.os == 'macos-14' && '.app' || '' }} $GITHUB_WORKSPACE/bin/
-
-      - name: Compile Projucer (Windows)
-        if: matrix.os == 'windows-2022'
-        shell: cmd
-        run: |
-          cd %GITHUB_WORKSPACE%\JUCE\extras\Projucer\Builds\VisualStudio2022
-          msbuild Projucer.sln /p:Configuration=Release /p:Platform=x64 /q
-          mkdir %GITHUB_WORKSPACE%\bin
-          copy build\Release\x64\Projucer.exe %GITHUB_WORKSPACE%\bin\
+          cp -r build/Release/Projucer.app $GITHUB_WORKSPACE/bin/
 
       - name: Resave JUCE Project
-        shell: bash
         run: |
-          if [ "${{ matrix.os }}" = "windows-2022" ]; then
-            $GITHUB_WORKSPACE/bin/Projucer.exe --resave juce-project/AdaptiveClipper.jucer
-          elif [ "${{ matrix.os }}" = "macos-14" ]; then
-            $GITHUB_WORKSPACE/bin/Projucer.app/Contents/MacOS/Projucer --resave juce-project/AdaptiveClipper.jucer
-          else
-            $GITHUB_WORKSPACE/bin/Projucer --resave juce-project/AdaptiveClipper.jucer
-          fi
+          $GITHUB_WORKSPACE/bin/Projucer.app/Contents/MacOS/Projucer --resave juce-project/AdaptiveClipper.jucer
 
       - name: Compile macOS Production Binaries (Universal)
-        if: matrix.os == 'macos-14'
         run: |
           cd $GITHUB_WORKSPACE/juce-project/Builds/MacOSX
           xcodebuild -configuration Release -target "AdaptiveClipper - All" ARCHS="arm64 x86_64" -quiet
 
-      - name: Compile Windows Production Binaries (x64)
-        if: matrix.os == 'windows-2022'
-        shell: cmd
-        run: |
-          cd %GITHUB_WORKSPACE%\juce-project\Builds\VisualStudio2022
-          msbuild AdaptiveClipper.sln /p:Configuration=Release /p:Platform=x64 /q
-
-      - name: Compile Linux Production Binaries (x64)
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          cd $GITHUB_WORKSPACE/juce-project/Builds/LinuxMakefile
-          make -j4 CONFIG=Release
-
       - name: Package macOS Artifacts
-        if: matrix.os == 'macos-14'
         uses: actions/upload-artifact@v4
         with:
           name: AdaptiveClipper-macOS
           path: |
             juce-project/Builds/MacOSX/build/Release/AdaptiveClipper.vst3
             juce-project/Builds/MacOSX/build/Release/AdaptiveClipper.component
-
-      - name: Package Windows Artifacts
-        if: matrix.os == 'windows-2022'
-        uses: actions/upload-artifact@v4
-        with:
-          name: AdaptiveClipper-Windows
-          path: juce-project/Builds/VisualStudio2022/x64/Release/
-
-      - name: Package Linux Artifacts
-        if: matrix.os == 'ubuntu-22.04'
-        uses: actions/upload-artifact@v4
-        with:
-          name: AdaptiveClipper-Linux
-          path: juce-project/Builds/LinuxMakefile/build/

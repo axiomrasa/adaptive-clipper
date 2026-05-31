@@ -1,3 +1,5 @@
+declare filename "adaptive_clipper.dsp";
+declare name "adaptive_clipper";
 import("stdfaust.lib");
 
 manual_drive = hslider("Drive (dB)", 0, 0, 24, 0.1) : ba.db2linear;

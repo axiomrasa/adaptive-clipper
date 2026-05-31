@@ -15,9 +15,9 @@ Adaptive Clipper isolates dynamic, level-dependent nonlinear morphing logic into
 ---
 
 ## 💾 Hardware & DAW Compatibility
-* **Windows (x64):** Plug-and-Play `.dll` target
-* **Linux (x64):** Plug-and-Play `.so` target
-* **macOS (Intel / Apple Silicon):** Universal Binary `.vst3` & `.component` (AU) via GitHub Actions CI/CD.
+* **Windows (x64):** VST3 Target (Ableton, Cubase, Studio One, Reaper, FL Studio)
+* **Linux (x64):** VST3 Target (Bitwig, Reaper Linux)
+* **macOS (Intel / Apple Silicon):** Universal Binary VST3 & AU (Ableton, Logic Pro, Cubase)
 
 ---
 
@@ -30,16 +30,32 @@ Adaptive Clipper isolates dynamic, level-dependent nonlinear morphing logic into
 ---
 
 ## 📦 Distribution & Installation Paths
-Choose the deployment path that best fits your workflow:
 
-### 🎛️ Path 1: Pre-Compiled Binaries (For Musicians & Producers)
-If you just want to use the plugin inside your DAW without messing with code:
+Choose the download path corresponding to your operating system:
 
-1. Navigate to the **Actions** tab on this GitHub repository (or the **Releases** section).
-2. Download the latest `AdaptiveClipper-Mac.zip` artifact.
-3. Unzip and copy the `.vst3` or `.component` (AU) bundle into your global system directory:
-   * **VST3:** `/Library/Audio/Plug-Ins/VST3/`
-   * **AU (Component):** `/Library/Audio/Plug-Ins/Components/`
-4. If macOS Gatekeeper flags the unverified developer warning, bypass it instantly via Terminal:
+### 🍏 For macOS Users (Automated Universal Build)
+Since macOS requires specific architecture code-signing, the binaries are generated automatically via cloud runners:
+1. Navigate to the **Actions** tab at the top of this GitHub repository.
+2. Click on the latest successful build workflow run.
+3. Scroll down to the **Artifacts** section and download `AdaptiveClipper-macOS.zip`.
+4. Extract the zip file and move the bundles to your global system directory:
+   * **VST3 Path:** `/Library/Audio/Plug-Ins/VST3/`
+   * **AU Path:** `/Library/Audio/Plug-Ins/Components/`
+5. **Gatekeeper Bypass:** If your DAW flags an unverified developer warning, open Terminal and execute:
    ```bash
    sudo xattr -rd com.apple.quarantine /Library/Audio/Plug-Ins/VST3/AdaptiveClipper.vst3
+🪟 / 🐧 For Windows & Linux Users (Direct Repository Download)
+Navigate directly to the builds/ folder inside this repository.
+
+Click on the production binary matching your OS (AdaptiveClipper.vst3, .dll, or .so).
+
+Click the "Download raw file" button to download it.
+
+Move the file to your system's default directory:
+
+Windows VST3 Path: C:\Program Files\Common Files\VST3\
+
+Linux VST3 Path: ~/.vst3/
+
+📄 License
+This project is open-source and available under the MIT License.
