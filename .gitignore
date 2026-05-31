@@ -1,4 +1,4 @@
-# --- OS Generated Files ---
+
 .DS_Store
 .DS_Store?
 ._*
@@ -7,7 +7,7 @@
 ehthumbs.db
 Thumbs.db
 
-# --- IDEs and Text Editors Config ---
+
 .vscode/
 .idea/
 *.swp
@@ -15,7 +15,7 @@ Thumbs.db
 *.suo
 *.user
 
-# --- Python Environments (For Workspace Utilities) ---
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -23,9 +23,8 @@ __pycache__/
 venv/
 env/
 
-# --- JUCE / C++ Compiler Artifacts ---
-# Ignores local user settings inside Xcode/Visual Studio projects
-**/Builds/
+
+juce-project/Builds/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 .clangd/
@@ -35,14 +34,10 @@ ipch/
 *.sdf
 *.cache
 
-# --- Audio Plugin Specifics ---
-# Avoid tracking automatic DAW plugin caches or states
+
 *.vst3cache
 *.aucache
 
-# --- EXCEPTION RULES ---
-# We want to explicitly track our production targets in lowercase builds/
-# Allow pre-compiled production binaries for manual release
 
-builds/.DS_Store
-builds/Mac-VST/.DS_Store
+!builds/
+!builds/**
