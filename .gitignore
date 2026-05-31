@@ -43,7 +43,6 @@ ipch/
 # --- EXCEPTION RULES ---
 # We want to explicitly track our production targets in lowercase builds/
 # Allow pre-compiled production binaries for manual release
-!builds/*.zip
-!builds/**/*.zip
+
 builds/.DS_Store
 builds/Mac-VST/.DS_Store
