@@ -13,12 +13,20 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Clone JUCE Framework
-        run: git clone https://github.com/juce-framework/JUCE.git --depth 1
+      - name: Clone JUCE Framework to Parent Directory
+        run: |
+          cd $GITHUB_WORKSPACE/..
+          git clone https://github.com/juce-framework/JUCE.git JUCE --depth 1
+
+      - name: Create Safe Path Symlink for JUCE Modules
+        run: |
+          # Projucer içindeki "../../modules" yolunu koda dokunmadan algılatmak için
+          # bulut sunucusunda güvenli bir sembolik bağlantı (klasör köprüsü) oluşturuyoruz.
+          ln -s $GITHUB_WORKSPACE/../JUCE/modules $GITHUB_WORKSPACE/../modules
 
       - name: Compile Projucer (macOS)
         run: |
-          cd $GITHUB_WORKSPACE/JUCE/extras/Projucer/Builds/MacOSX
+          cd $GITHUB_WORKSPACE/../JUCE/extras/Projucer/Builds/MacOSX
           xcodebuild -configuration Release -quiet
           mkdir -p $GITHUB_WORKSPACE/bin
           cp -r build/Release/Projucer.app $GITHUB_WORKSPACE/bin/
