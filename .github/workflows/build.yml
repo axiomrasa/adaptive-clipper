@@ -1,4 +1,4 @@
-name: PunchBox DPF Universal Pipeline
+name: PunchBox DPF Pipeline
 
 on:
   push:
@@ -14,10 +14,10 @@ jobs:
         include:
           - os: macos-14
             platform: macos
-          - os: windows-latest
-            platform: windows
           - os: ubuntu-latest
             platform: linux
+          - os: windows-latest
+            platform: windows
 
     steps:
       - name: Checkout Source Code
@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install hvcc
+      - name: Install hvcc (Heavy DSP Compiler)
         run: pip install hvcc
 
       - name: Install Linux Audio Dependencies
@@ -37,37 +37,37 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libgl1-mesa-dev libxext-dev libxcursor-dev libasound2-dev libfreetype6-dev pkg-config
 
+      - name: Setup MSYS2 for Windows Compilation
+        if: matrix.platform == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            make
+
       - name: Generate C++ Source via DPF
         run: hvcc src/patch.pd -n PunchBox -o src/build -g dpf
 
-      - name: Fetch DPF Framework
-        shell: bash
-        run: |
-          CMAKE_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
-          git clone --depth 1 https://github.com/DISTRHO/DPF.git "$CMAKE_DIR/dpf"
+      - name: Fetch DISTRHO Plugin Framework
+        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git src/build/dpf/dpf
 
-      - name: Compile Plugins via CMake (macOS)
-        if: matrix.platform == 'macos'
-        shell: bash
+      - name: Compile Plugins (macOS & Linux)
+        if: matrix.platform != 'windows'
         run: |
-          CMAKE_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
-          cd "$CMAKE_DIR"
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-          cmake --build build --config Release
+          cd src/build/dpf
+          make
 
-      - name: Compile Plugins via CMake (Windows & Linux)
-        if: matrix.platform != 'macos'
-        shell: bash
+      - name: Compile Plugins (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
         run: |
-          CMAKE_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
-          cd "$CMAKE_DIR"
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release
+          cd src/build/dpf
+          make
 
-      - name: Upload Artifacts
+      - name: Upload Production Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: PunchBox-${{ matrix.platform }}-Plugins
-          path: |
-            src/build/**/*.vst3
-            src/build/**/*.component
+          path: src/build/dpf/bin/
