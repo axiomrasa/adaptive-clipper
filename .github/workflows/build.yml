@@ -1,4 +1,4 @@
-name: PunchBox Universal Pipeline
+name: PunchBox DPF Universal Pipeline
 
 on:
   push:
@@ -28,75 +28,43 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install hvcc (Heavy DSP Compiler)
+      - name: Install hvcc
         run: pip install hvcc
 
-      - name: Install Linux GUI & Audio Dependencies
+      - name: Install Linux Audio Dependencies
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev build-essential pkg-config libcurl4-openssl-dev
+          sudo apt-get install -y libx11-dev libgl1-mesa-dev libxext-dev libxcursor-dev libasound2-dev libfreetype6-dev pkg-config
 
-      - name: Generate C++ Audio Engine from PureData
-        # FIXED: The correct flag for the modern hvcc compiler is '-g juce'
-        run: hvcc src/patch.pd -n PunchBox -o src/build -g juce
+      - name: Generate C++ Source via DPF
+        run: hvcc src/patch.pd -n PunchBox -o src/build -g dpf
 
-      - name: Inject Custom GUI Styling
+      - name: Fetch DPF Framework
         shell: bash
         run: |
-          # Dynamically locate the generated PluginEditor files
-          EDITOR_H=$(find src/build -name "PluginEditor.h" | head -n 1)
-          EDITOR_CPP=$(find src/build -name "PluginEditor.cpp" | head -n 1)
-          
-          # Inject the custom UI header if the file exists
-          if [ -n "$EDITOR_H" ] && [ -f src/gui/CustomUI.h ]; then
-            cp src/gui/CustomUI.h "$(dirname "$EDITOR_H")/"
-            sed -i.bak '1i\
-            #include "CustomUI.h"
-            ' "$EDITOR_H" || true
-          fi
-          
-          # Inject the LookAndFeel class instance into the constructor
-          if [ -n "$EDITOR_CPP" ]; then
-            sed -i.bak '/AudioProcessorEditor/a\
-            static PunchBoxLookAndFeel customLookAndFeel;\
-            setLookAndFeel(&customLookAndFeel);
-            ' "$EDITOR_CPP" || true
-          fi
+          CMAKE_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
+          git clone --depth 1 https://github.com/DISTRHO/DPF.git "$CMAKE_DIR/dpf"
 
-      - name: Compile VST3 via CMake (macOS Universal Binary)
+      - name: Compile Plugins via CMake (macOS)
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          CMAKE_FILE=$(find src/build -name "CMakeLists.txt" | head -n 1)
-          if [ -z "$CMAKE_FILE" ]; then
-            echo "ERROR: CMakeLists.txt not found. Listing src/build to debug:"
-            ls -laR src/build
-            exit 1
-          fi
-          
-          TARGET_DIR=$(dirname "$CMAKE_FILE")
-          cd "$TARGET_DIR"
+          CMAKE_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
+          cd "$CMAKE_DIR"
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           cmake --build build --config Release
 
-      - name: Compile VST3 via CMake (Windows & Linux)
+      - name: Compile Plugins via CMake (Windows & Linux)
         if: matrix.platform != 'macos'
         shell: bash
         run: |
-          CMAKE_FILE=$(find src/build -name "CMakeLists.txt" | head -n 1)
-          if [ -z "$CMAKE_FILE" ]; then
-            echo "ERROR: CMakeLists.txt not found. Listing src/build to debug:"
-            ls -laR src/build
-            exit 1
-          fi
-          
-          TARGET_DIR=$(dirname "$CMAKE_FILE")
-          cd "$TARGET_DIR"
+          CMAKE_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
+          cd "$CMAKE_DIR"
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
 
-      - name: Upload Production Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: PunchBox-${{ matrix.platform }}-Plugins
