@@ -38,15 +38,17 @@ jobs:
           sudo apt-get install -y libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev build-essential pkg-config libcurl4-openssl-dev
 
       - name: Generate C++ Audio Engine from PureData
-        # CORRECTED: Generator must be 'framework-juce' to generate CMake build files
-        run: hvcc src/patch.pd -o src/build -p cplusplus -g framework-juce
+        # FIXED: The correct flag for the modern hvcc compiler is '-g juce'
+        run: hvcc src/patch.pd -n PunchBox -o src/build -g juce
 
       - name: Inject Custom GUI Styling
         shell: bash
         run: |
+          # Dynamically locate the generated PluginEditor files
           EDITOR_H=$(find src/build -name "PluginEditor.h" | head -n 1)
           EDITOR_CPP=$(find src/build -name "PluginEditor.cpp" | head -n 1)
           
+          # Inject the custom UI header if the file exists
           if [ -n "$EDITOR_H" ] && [ -f src/gui/CustomUI.h ]; then
             cp src/gui/CustomUI.h "$(dirname "$EDITOR_H")/"
             sed -i.bak '1i\
@@ -54,6 +56,7 @@ jobs:
             ' "$EDITOR_H" || true
           fi
           
+          # Inject the LookAndFeel class instance into the constructor
           if [ -n "$EDITOR_CPP" ]; then
             sed -i.bak '/AudioProcessorEditor/a\
             static PunchBoxLookAndFeel customLookAndFeel;\
