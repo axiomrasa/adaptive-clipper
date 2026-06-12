@@ -14,13 +14,13 @@ jobs:
         include:
           - os: macos-14
             platform: macos
-            artifact-path: "src/build/cplusplus/framework-juce/build/*_artefacts/Release/VST3/*.vst3"
+            artifact-path: "src/build/dpf/build/bin/*"
           - os: windows-latest
             platform: windows
-            artifact-path: "src/build/cplusplus/framework-juce/build/*_artefacts/Release/VST3/*.vst3"
+            artifact-path: "src/build/dpf/build/bin/*"
           - os: ubuntu-latest
             platform: linux
-            artifact-path: "src/build/cplusplus/framework-juce/build/*_artefacts/Release/VST3/*.vst3"
+            artifact-path: "src/build/dpf/build/bin/*"
 
     steps:
       - name: Checkout Source Code
@@ -38,39 +38,29 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev build-essential pkg-config libcurl4-openssl-dev
+          sudo apt-get install -y libx11-dev libgl1-mesa-dev pkg-config
 
-      - name: Generate C++ Audio Engine from PureData
-        run: hvcc src/patch.pd -o src/build -p cplusplus -g framework-juce
+      - name: Generate Plugin Source via DPF
+        # -n PunchBox ile eklentinin adını DAW'a kaydediyoruz
+        # -g dpf ile doğrudan VST3/AU motorunu tetikliyoruz
+        run: hvcc src/patch.pd -n PunchBox -o src/build -g dpf
 
-      - name: Inject Custom GUI Styling
-        shell: bash
-        run: |
-          sed -i.bak '1i\
-          #include "../../../../gui/CustomUI.h"
-          ' src/build/cplusplus/framework-juce/Source/PluginEditor.h || true
-          
-          sed -i.bak '/AudioProcessorEditor/a\
-          static PunchBoxLookAndFeel customLookAndFeel;\
-          setLookAndFeel(&customLookAndFeel);
-          ' src/build/cplusplus/framework-juce/Source/PluginEditor.cpp || true
-
-      - name: Compile VST3 via CMake (Mac Universal)
+      - name: Compile VST3/AU via CMake (Mac Universal)
         if: matrix.platform == 'macos'
         run: |
-          cd src/build/cplusplus/framework-juce
+          cd src/build/dpf
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           cmake --build build --config Release
 
       - name: Compile VST3 via CMake (Windows & Linux)
         if: matrix.platform != 'macos'
         run: |
-          cd src/build/cplusplus/framework-juce
+          cd src/build/dpf
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
 
-      - name: Upload Production VST3
+      - name: Upload Production Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: PunchBox-${{ matrix.platform }}-VST3
+          name: PunchBox-${{ matrix.platform }}-Plugins
           path: ${{ matrix.artifact-path }}
