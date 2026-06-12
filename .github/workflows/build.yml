@@ -14,48 +14,70 @@ jobs:
         include:
           - os: macos-14
             platform: macos
-            artifact-path: "src/build/dpf/build/bin/*"
           - os: windows-latest
             platform: windows
-            artifact-path: "src/build/dpf/build/bin/*"
           - os: ubuntu-latest
             platform: linux
-            artifact-path: "src/build/dpf/build/bin/*"
 
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python Environment
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install hvcc (DSP Compiler)
+      - name: Install hvcc (Heavy DSP Compiler)
         run: pip install hvcc
 
-      - name: Install Linux GUI/Audio Dependencies
+      - name: Install Linux GUI & Audio Dependencies
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libgl1-mesa-dev pkg-config
+          sudo apt-get install -y libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev build-essential pkg-config libcurl4-openssl-dev
 
-      - name: Generate Plugin Source via DPF
-        # -n PunchBox ile eklentinin adını DAW'a kaydediyoruz
-        # -g dpf ile doğrudan VST3/AU motorunu tetikliyoruz
-        run: hvcc src/patch.pd -n PunchBox -o src/build -g dpf
+      - name: Generate C++ Audio Engine from PureData
+        run: hvcc src/patch.pd -o src/build -p cplusplus -g juce
 
-      - name: Compile VST3/AU via CMake (Mac Universal)
-        if: matrix.platform == 'macos'
+      - name: Inject Custom GUI Styling
+        shell: bash
         run: |
-          cd src/build/dpf
+          # Dynamically locate the generated PluginEditor files
+          EDITOR_H=$(find src/build -name "PluginEditor.h" | head -n 1)
+          EDITOR_CPP=$(find src/build -name "PluginEditor.cpp" | head -n 1)
+          
+          # Inject the custom UI header if the file exists
+          if [ -n "$EDITOR_H" ] && [ -f src/gui/CustomUI.h ]; then
+            cp src/gui/CustomUI.h "$(dirname "$EDITOR_H")/"
+            sed -i.bak '1i\
+            #include "CustomUI.h"
+            ' "$EDITOR_H" || true
+          fi
+          
+          # Inject the LookAndFeel class instance into the constructor
+          if [ -n "$EDITOR_CPP" ]; then
+            sed -i.bak '/AudioProcessorEditor/a\
+            static PunchBoxLookAndFeel customLookAndFeel;\
+            setLookAndFeel(&customLookAndFeel);
+            ' "$EDITOR_CPP" || true
+          fi
+
+      - name: Compile VST3 via CMake (macOS Universal Binary)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          TARGET_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
+          cd "$TARGET_DIR"
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           cmake --build build --config Release
 
       - name: Compile VST3 via CMake (Windows & Linux)
         if: matrix.platform != 'macos'
+        shell: bash
         run: |
-          cd src/build/dpf
+          TARGET_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
+          cd "$TARGET_DIR"
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
 
@@ -63,4 +85,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: PunchBox-${{ matrix.platform }}-Plugins
-          path: ${{ matrix.artifact-path }}
+          path: |
+            src/build/**/*.vst3
+            src/build/**/*.component
