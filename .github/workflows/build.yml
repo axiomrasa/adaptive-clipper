@@ -38,16 +38,15 @@ jobs:
           sudo apt-get install -y libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev build-essential pkg-config libcurl4-openssl-dev
 
       - name: Generate C++ Audio Engine from PureData
-        run: hvcc src/patch.pd -o src/build -p cplusplus -g juce
+        # CORRECTED: Generator must be 'framework-juce' to generate CMake build files
+        run: hvcc src/patch.pd -o src/build -p cplusplus -g framework-juce
 
       - name: Inject Custom GUI Styling
         shell: bash
         run: |
-          # Dynamically locate the generated PluginEditor files
           EDITOR_H=$(find src/build -name "PluginEditor.h" | head -n 1)
           EDITOR_CPP=$(find src/build -name "PluginEditor.cpp" | head -n 1)
           
-          # Inject the custom UI header if the file exists
           if [ -n "$EDITOR_H" ] && [ -f src/gui/CustomUI.h ]; then
             cp src/gui/CustomUI.h "$(dirname "$EDITOR_H")/"
             sed -i.bak '1i\
@@ -55,7 +54,6 @@ jobs:
             ' "$EDITOR_H" || true
           fi
           
-          # Inject the LookAndFeel class instance into the constructor
           if [ -n "$EDITOR_CPP" ]; then
             sed -i.bak '/AudioProcessorEditor/a\
             static PunchBoxLookAndFeel customLookAndFeel;\
@@ -67,7 +65,14 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          TARGET_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
+          CMAKE_FILE=$(find src/build -name "CMakeLists.txt" | head -n 1)
+          if [ -z "$CMAKE_FILE" ]; then
+            echo "ERROR: CMakeLists.txt not found. Listing src/build to debug:"
+            ls -laR src/build
+            exit 1
+          fi
+          
+          TARGET_DIR=$(dirname "$CMAKE_FILE")
           cd "$TARGET_DIR"
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           cmake --build build --config Release
@@ -76,7 +81,14 @@ jobs:
         if: matrix.platform != 'macos'
         shell: bash
         run: |
-          TARGET_DIR=$(dirname $(find src/build -name "CMakeLists.txt" | head -n 1))
+          CMAKE_FILE=$(find src/build -name "CMakeLists.txt" | head -n 1)
+          if [ -z "$CMAKE_FILE" ]; then
+            echo "ERROR: CMakeLists.txt not found. Listing src/build to debug:"
+            ls -laR src/build
+            exit 1
+          fi
+          
+          TARGET_DIR=$(dirname "$CMAKE_FILE")
           cd "$TARGET_DIR"
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
