@@ -37,37 +37,54 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libgl1-mesa-dev libxext-dev libxcursor-dev libasound2-dev libfreetype6-dev pkg-config
 
-      - name: Setup MSYS2 for Windows Compilation
-        if: matrix.platform == 'windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            mingw-w64-x86_64-gcc
-            make
-
       - name: Generate C++ Source via DPF
         run: hvcc src/patch.pd -n PunchBox -o src/build -g dpf
 
-      - name: Fetch DISTRHO Plugin Framework
-        run: git clone --depth 1 https://github.com/DISTRHO/DPF.git src/build/dpf/dpf
-
-      - name: Compile Plugins (macOS & Linux)
-        if: matrix.platform != 'windows'
+      - name: Dynamically Generate CMake Blueprint & Fetch DPF
+        shell: bash
         run: |
           cd src/build/dpf
-          make
+          
+          # 1. Fetch the DISTRHO Plugin Framework engine
+          git clone --depth 1 https://github.com/DISTRHO/DPF.git dpf
+          
+          # 2. Write the CMake instructions directly into the server
+          cat << 'EOF' > CMakeLists.txt
+          cmake_minimum_required(VERSION 3.15)
+          project(PunchBox)
+          
+          add_subdirectory(dpf)
+          
+          file(GLOB SOURCES "*.cpp" "*.c")
+          
+          dpf_add_plugin(PunchBox
+              TARGETS vst3 au
+              FILES_DSP ${SOURCES}
+          )
+          
+          target_include_directories(PunchBox PRIVATE . dpf/distrho)
+          EOF
 
-      - name: Compile Plugins (Windows)
-        if: matrix.platform == 'windows'
-        shell: msys2 {0}
+      - name: Compile Plugins (macOS Universal Binary)
+        if: matrix.platform == 'macos'
+        shell: bash
         run: |
           cd src/build/dpf
-          make
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          cmake --build build --config Release
+
+      - name: Compile Plugins (Windows & Linux)
+        if: matrix.platform != 'macos'
+        shell: bash
+        run: |
+          cd src/build/dpf
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
 
       - name: Upload Production Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: PunchBox-${{ matrix.platform }}-Plugins
-          path: src/build/dpf/bin/
+          path: |
+            src/build/dpf/build/**/*.vst3
+            src/build/dpf/build/**/*.component
