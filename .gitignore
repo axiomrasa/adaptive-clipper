@@ -44,3 +44,6 @@ ipch/
 # ==============================================================================
 !builds/
 !builds/**
+# Python Virtual Environment
+.venv/
+venv/

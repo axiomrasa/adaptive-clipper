@@ -1,11 +1,11 @@
-name: Cross-Platform PlugData Toolchain Compiler
+name: PunchBox Universal Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
-  compile-plugins:
+  build:
     name: Build Native Audio Plugins
     runs-on: ${{ matrix.os }}
     strategy:
@@ -14,37 +14,63 @@ jobs:
         include:
           - os: macos-14
             platform: macos
-            artifact-path: src/build/AdaptiveClipper.vst3
+            artifact-path: "src/build/cplusplus/framework-juce/build/*_artefacts/Release/VST3/*.vst3"
           - os: windows-latest
             platform: windows
-            artifact-path: src/build/AdaptiveClipper.vst3
+            artifact-path: "src/build/cplusplus/framework-juce/build/*_artefacts/Release/VST3/*.vst3"
           - os: ubuntu-latest
             platform: linux
-            artifact-path: src/build/AdaptiveClipper.vst3
+            artifact-path: "src/build/cplusplus/framework-juce/build/*_artefacts/Release/VST3/*.vst3"
 
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Setup Python Environment
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Heavy Compiler Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install hvcc
+      - name: Install hvcc (DSP Compiler)
+        run: pip install hvcc
 
-      - name: Run Toolchain Binary Compilation
+      - name: Install Linux GUI/Audio Dependencies
+        if: matrix.platform == 'linux'
         run: |
-          # Executes the structural transformation from visual patch to multi-target native bundles
-          hvcc src/patch.pd -o src/build -p cplusplus -g framework-juce
+          sudo apt-get update
+          sudo apt-get install -y libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev build-essential pkg-config libcurl4-openssl-dev
 
-      - name: Upload Production Artifacts
+      - name: Generate C++ Audio Engine from PureData
+        run: hvcc src/patch.pd -o src/build -p cplusplus -g framework-juce
+
+      - name: Inject Custom GUI Styling
+        shell: bash
+        run: |
+          sed -i.bak '1i\
+          #include "../../../../../gui/CustomUI.h"
+          ' src/build/cplusplus/framework-juce/plugin/source/PluginEditor.h
+          
+          sed -i.bak '/GenericAudioProcessorEditor (Processor& p)/a\
+          static PunchBoxLookAndFeel customLookAndFeel;\
+          setLookAndFeel(&customLookAndFeel);
+          ' src/build/cplusplus/framework-juce/plugin/source/PluginEditor.cpp
+
+      - name: Compile VST3 via CMake (Mac Universal)
+        if: matrix.platform == 'macos'
+        run: |
+          cd src/build/cplusplus/framework-juce
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          cmake --build build --config Release
+
+      - name: Compile VST3 via CMake (Windows & Linux)
+        if: matrix.platform != 'macos'
+        run: |
+          cd src/build/cplusplus/framework-juce
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+
+      - name: Upload Production VST3
         uses: actions/upload-artifact@v4
         with:
-          name: AdaptiveClipper-${{ matrix.platform }}
+          name: PunchBox-${{ matrix.platform }}-VST3
           path: ${{ matrix.artifact-path }}
