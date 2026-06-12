@@ -47,13 +47,13 @@ jobs:
         shell: bash
         run: |
           sed -i.bak '1i\
-          #include "../../../../../gui/CustomUI.h"
-          ' src/build/cplusplus/framework-juce/plugin/source/PluginEditor.h
+          #include "../../../../gui/CustomUI.h"
+          ' src/build/cplusplus/framework-juce/Source/PluginEditor.h || true
           
-          sed -i.bak '/GenericAudioProcessorEditor (Processor& p)/a\
+          sed -i.bak '/AudioProcessorEditor/a\
           static PunchBoxLookAndFeel customLookAndFeel;\
           setLookAndFeel(&customLookAndFeel);
-          ' src/build/cplusplus/framework-juce/plugin/source/PluginEditor.cpp
+          ' src/build/cplusplus/framework-juce/Source/PluginEditor.cpp || true
 
       - name: Compile VST3 via CMake (Mac Universal)
         if: matrix.platform == 'macos'
