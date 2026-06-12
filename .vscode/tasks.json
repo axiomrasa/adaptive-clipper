@@ -22,7 +22,7 @@
         {
             "label": "Push Release to GitHub",
             "type": "shell",
-            "command": "git add . && git commit -m 'prod: rapid micro-release pipeline execution' && git push origin main",
+            "command": "git add . && git commit -m 'build: patch update' && git push origin main",
             "problemMatcher": [],
             "presentation": {
                 "echo": true,
